@@ -1,23 +1,24 @@
 const express = require('express');
+const {adminAuth, userAuth} = require('./middlewares/auth')
 const app = express();
 
-app.use('/user',(req, res, next)=> {
-    // res.send('Response!!')
-    next();
-}, (req, res, next) => {
-    // res.send('2nd Response!!');
-    next();
-}, (req, res, next) => {
-    // res.send('3rd Response!!');
-    next();
-}, (req, res, next) => {
-    // res.send('4th Response!!');
-    next();
-}, (req, res, next) => {
-    res.send('5th Response!!');
-    
+app.use('/admin', adminAuth);
+
+app.get('/user', userAuth,  (req, res) => {
+    res.send('User is fetched');
 });
 
+app.post('/user/login', (req, res) => {
+    res.send('User logged in successfully')
+})
+
+app.get('/admin/getAllData', (req, res) => {
+    res.send('All data is fetched');
+});
+
+app.get('/admin/deleteUser', (req, res) => {
+    res.send('User is deleted');
+});
 
 
 
