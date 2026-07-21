@@ -1,24 +1,24 @@
 const express = require('express');
-const {adminAuth, userAuth} = require('./middlewares/auth')
+
+
 const app = express();
 
-app.use('/admin', adminAuth);
+app.get('/getUserData', (req, res) => {
+    try {
+        throw new Error('User not found');
+    } catch (err) {
+        res.status(500).send('Something went wrong')
+    }
+})
 
-app.get('/user', userAuth,  (req, res) => {
+
+app.use('/',  (err, req, res, next) => {
+    if(err) {
+        res.status(500).send('Internal server error');
+    }
     res.send('User is fetched');
 });
 
-app.post('/user/login', (req, res) => {
-    res.send('User logged in successfully')
-})
-
-app.get('/admin/getAllData', (req, res) => {
-    res.send('All data is fetched');
-});
-
-app.get('/admin/deleteUser', (req, res) => {
-    res.send('User is deleted');
-});
 
 
 
