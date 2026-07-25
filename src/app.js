@@ -1,108 +1,85 @@
-const express = require('express');
-const connectDB = require('./config/database');
-const User = require('./models/user')
+const express = require("express");
+const connectDB = require("./config/database");
 const app = express();
+const User = require("./models/user");
+const bcrypt = require("bcrypt");
+const { validateSchema } = require("./utils/validation");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+const { userAuth } = require("./middlewares/auth");
 
-app.use(express.json())
+app.use(express.json());
+app.use(cookieParser());
 
-app.post('/signUp', async (req,res) => {
-   const user = new User(req.body);
-   try {
-       await user.save();
-       res.send('User created successfully');
-   } catch (err) {
-       res.status(400).send(err.message);
-   }
-});
-
-app.get('/user', async(req, res) => {
-const userEmail = req.body.email
-const userId = req.body._id
-    try {
-      const users = await User.find({email: userEmail})
-      if(users?.length === 0) {
-        res.status(400).send('User not found')
-      } else  {
-        res.send(users)
-      }
-    } catch(err) {
-        res.status(400).send(err.message);
-    }
-
-    // try {
-    //   const user = await User.findById(userId)
-    //   if(!user) {
-    //     res.status(400).send('User not found')
-    //   } else {
-    //     res.send(user)
-
-    //   }
-    // } catch(err) {
-    //     res.status(400).send(err.message);
-    // }
-
-    //   try {
-    //     //if you are not using sort then it will return users on natural order may be firts registered one or oldest document if you give sort and -1 then it will give newest record and sort with 1 then it will give oldest or first record found
-    //   const users = await User.findOne({email: userEmail}).sort({_id: -1})
-    //   if(!users) {
-    //     res.status(400).send('User not found')
-    //   } else  {
-    //     res.send(users)
-    //   }
-    // } catch(err) {
-    //     res.status(400).send(err.message);
-    // }
-});
-
-
-app.get('/feed', async(req, res) => {
+app.post("/signUp", async (req, res) => {
   try {
-    const users = await User.find()
-    res.send(users)
-  } catch(err) {
-    res.status(400).send(err.message);
+    //First Validate the req
+    validateSchema(req);
+    const { firstName, lastName, email, password } = req.body;
+    //Encrypt the data
+    const passwordHash = await bcrypt.hash(password, 10);
+    //Store the data in db
+    const user = new User({
+      firstName,
+      lastName,
+      email,
+      password: passwordHash,
+    });
+    await user.save();
+    res.send("User created successfully");
+  } catch (err) {
+    res.status(400).send("ERROR: " + err.message);
   }
 });
 
-app.delete('/user', async (req, res) => {
-    const userId = req.body.userId
-    try {
-     const user = await User.findByIdAndDelete(userId)
-     res.send('User deleted successfully')
-    } catch (err) {
-        res.status(400).send(err.message);
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email: email });
+
+    if (!user) {
+      throw new Error("Invalid Credentials");
     }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (isPasswordValid) {
+      const token = await jwt.sign({ _id: user._id }, "DEVTINDER@55", {expiresIn: '7d'});
+      res.cookie("token", token);
+      res.send("Login Successfull!!");
+    } else {
+      throw new Error("Invalid Credentials");
+    }
+  } catch (err) {
+    res.status(400).send("ERROR: " + err.message);
+  }
 });
 
-app.patch('/user/:userId', async (req, res) => {
-    const userId = req.params.userId;
-    const data = req.body;
-    try {
-        const ALLOWED_UPDATES = ["skills", "age", "gender", "about"];
-        const isAllowedUpdates = Object.keys(data).every((k) => ALLOWED_UPDATES.includes(k));
-        if(!isAllowedUpdates) {
-            throw new Error('Update not allowed')
-        };
-
-        if(data?.skills?.length > 10) {
-            throw new Error('Skills not allowed more than 10')
-        }
-        const user = await User.findByIdAndUpdate({_id: userId}, data, {returnDocument: 'after'})
-        res.send('User updated successfully')
-    } catch(err) {
-        res.status(400).send(err.message)
-    }
+app.get("/profile", userAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    res.send(user);
+  } catch (err) {
+    res.status(400).send("ERROR: " + err.message);
+  }
 });
 
-connectDB().then(() => {
-    console.log('Database connected successfully');
-app.listen(7777, () => {
-    console.log('Server is running on port 7777');
-})
-}).catch((err) => {
-    console.log('Database cannot be connected!!');
-})
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    res.send(user.firstName + "  sent connection request");
+  } catch (err) {
+    throw new Error("Unable to request");
+  }
+});
 
-
-
-
+connectDB()
+  .then(() => {
+    console.log("Database connected successfully");
+    app.listen(7777, () => {
+      console.log("Server is running on port 7777");
+    });
+  })
+  .catch((err) => {
+    console.log("Database cannot be connected!!");
+  });
