@@ -11,6 +11,16 @@ const validateSchema = (req) => {
     } else if (!validator.isStrongPassword(password)) {
         throw new Error('Enter Strong Password')
     }
+
+
+    const allowingFields = ["firstName", "lastName",  "email", "password"];
+
+    const inValidFields = Object.keys(req.body).filter((item) => !allowingFields?.includes(item));
+    if(inValidFields?.length > 0) {
+        throw new Error(`Invalid Fields: ${inValidFields.join(',')}`)
+    }
+
+
 }
 
 module.exports = {
